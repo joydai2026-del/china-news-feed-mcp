@@ -1,0 +1,78 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { test } from 'node:test';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createServer, sourceTypes } from '../dist/server.js';
+
+test('MCP tools preserve actor inputs, billing, projection, flags, and safe errors', async () => {
+  const fixtures = JSON.parse(await readFile(new URL('../sample-rows.json', import.meta.url), 'utf8'));
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.APIFY_TOKEN;
+  const server = createServer();
+  const client = new Client({ name: 'test', version: '1' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  let requests = [];
+  let data = fixtures;
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url: new URL(url), ...options, input: JSON.parse(options.body) });
+    return new Response(JSON.stringify(data), { status: 200 });
+  };
+  const call = (name, args = {}) => client.callTool({ name, arguments: args });
+  const parse = result => JSON.parse(result.content[0].text);
+  try {
+    delete process.env.APIFY_TOKEN;
+    assert.equal((await call('get_china_news')).isError, true);
+    assert.equal(requests.length, 0);
+    process.env.APIFY_TOKEN = 'test-only-placeholder';
+    const tools = (await client.listTools()).tools;
+    assert.deepEqual(tools.map(t => t.name), ['get_china_news', 'get_hot_lists', 'get_deletions']);
+    assert.deepEqual(tools[0].inputSchema.properties.sourceTypes.items.enum, [...sourceTypes]);
+    const hot = parse(await call('get_hot_lists', { language: 'en', platforms: ['weibo'], maxRank: 5 }));
+    assert.equal(hot.count, 2);
+    assert.equal(hot.rows[0].headline_original, undefined);
+    assert.equal(hot.rows[1].headline_en, undefined);
+    assert.equal(hot.rows[0].censorship.provisional, false);
+    assert.equal(hot.rows[0].last_seen, fixtures[0].censorship.censored_at.last_seen);
+    assert.deepEqual(requests.at(-1).input, { sourceTypes: [], hotLists: ['weibo'], maxHotRank: 5, maxItems: 50, emitOnlyNew: false, snapshotCount: 1 });
+    assert.equal(requests.at(-1).url.searchParams.get('clean'), '1');
+    assert.equal(requests.at(-1).url.searchParams.get('token'), process.env.APIFY_TOKEN);
+    assert.equal(requests.at(-1).method, 'POST');
+    assert.ok(requests.at(-1).signal instanceof AbortSignal);
+    data = [...fixtures, { kind: 'news', headline_en: 'Example CHINA story', headline_original: '中国', heat: 0, censorship: null }, { kind: 'news', headline_en: 'Other' }];
+    const news = parse(await call('get_china_news', { query: 'china', language: 'zh', sources: ['xinhua'], sourceTypes: ['State media'], maxItems: 100 }));
+    assert.equal(news.count, 1);
+    assert.equal(news.rows[0].headline_en, undefined);
+    assert.equal(news.rows[0].heat, 0);
+    assert.equal(news.rows[0].censorship, undefined);
+    assert.equal(news.note, 'billed rows: 4 at $8/1000');
+    assert.deepEqual(requests.at(-1).input, { maxItems: 100, hotLists: [], newsSources: ['xinhua'], sourceTypes: ['State media'], emitOnlyNew: false, snapshotCount: 1 });
+    const deletions = parse(await call('get_deletions', { highRank: 3 }));
+    assert.equal(deletions.count, 2);
+    assert.equal(requests.at(-1).input.highRank, 3);
+    assert.deepEqual(requests.at(-1).input.sourceTypes, []);
+    assert.equal(requests.at(-1).input.hotLists.length, 7);
+    const beforeInvalid = requests.length;
+    assert.equal((await call('get_hot_lists', { maxRank: 4 })).isError, true);
+    assert.equal((await call('get_china_news', { maxItems: 501 })).isError, true);
+    assert.equal((await call('get_deletions', { highRank: 2 })).isError, true);
+    assert.equal(requests.length, beforeInvalid);
+    globalThis.fetch = async () => new Response(process.env.APIFY_TOKEN, { status: 401 });
+    const httpError = await call('get_china_news');
+    assert.equal(httpError.isError, true);
+    assert.match(httpError.content[0].text, /401/);
+    assert.ok(!JSON.stringify(httpError).includes(process.env.APIFY_TOKEN));
+    globalThis.fetch = async () => { throw new Error(process.env.APIFY_TOKEN); };
+    assert.ok(!JSON.stringify(await call('get_china_news')).includes(process.env.APIFY_TOKEN));
+    globalThis.fetch = async () => new Response('{}');
+    assert.equal((await call('get_china_news')).isError, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.APIFY_TOKEN;
+    else process.env.APIFY_TOKEN = originalToken;
+    await client.close();
+    await server.close();
+  }
+});

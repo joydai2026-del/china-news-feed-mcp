@@ -1,0 +1,226 @@
+{
+ "title": "China media feed input",
+ "type": "object",
+ "schemaVersion": 1,
+ "properties": {
+  "hotLists": {
+   "title": "Hot lists to snapshot",
+   "type": "array",
+   "editor": "select",
+   "items": {
+    "type": "string",
+    "enum": [
+     "weibo",
+     "baidu",
+     "zhihu",
+     "toutiao",
+     "bilibili",
+     "douyin",
+     "kuaishou"
+    ],
+    "enumTitles": [
+     "Weibo hot search",
+     "Baidu hot search",
+     "Zhihu hot list",
+     "Toutiao hot board",
+     "Bilibili hot search",
+     "Douyin hot list (public mirror)",
+     "Kuaishou hot list (public mirror)"
+    ]
+   },
+   "default": [
+    "weibo",
+    "baidu",
+    "zhihu",
+    "toutiao",
+    "bilibili",
+    "douyin",
+    "kuaishou"
+   ],
+   "description": "Public trending lists fetched logged-out. The default is every list. A list you leave out is not fetched, and its hot-list rows and deletion flags are not pushed or billed. An empty selection includes none."
+  },
+  "sourceTypes": {
+   "title": "Source types",
+   "type": "array",
+   "editor": "select",
+   "items": {
+    "type": "string",
+    "enum": [
+     "State media",
+     "Party-gov",
+     "Commercial platform",
+     "Overseas independent",
+     "Dissident",
+     "Censorship tracker"
+    ],
+    "enumTitles": [
+     "State media",
+     "Party-gov",
+     "Commercial platform",
+     "Overseas independent",
+     "Dissident",
+     "Censorship tracker"
+    ]
+   },
+   "default": [
+    "State media",
+    "Party-gov",
+    "Commercial platform",
+    "Overseas independent",
+    "Dissident",
+    "Censorship tracker"
+   ],
+   "description": "Which news rows to push and bill, by the type each row is credited to after aggregator handling. When a cluster_context record from the last 2 hours is available and this selection is narrower than every type, only sources of the selected types are fetched. If that record is missing, stale, or unusable, or this selection is every type, every approved news source is fetched. Hot lists follow hotLists. Evidence, clusters, and overseas pickup stay the same whatever you select here, using the stored context when the fetch is narrowed. The default is every type, including Commercial platform, and does not drop rows. Leaving the field unset does the same. A Commercial platform news row ships when you select that type and is left out when you select other types only. Douyin mirror rows also require douyin in hotLists; that list is in the default, so a default run still ships them, and leaving douyin out drops them even when Commercial platform is selected. Aggregator items are credited to the original outlet's type or dropped, and a credited row is kept only when that type is selected. A news row of an unselected type is not pushed and is not remembered. An empty list selects no news types."
+  },
+  "newsSources": {
+   "title": "News sources",
+   "type": "array",
+   "editor": "stringList",
+   "items": {
+    "type": "string"
+   },
+   "default": [
+    "all"
+   ],
+   "description": "\"all\" (default) = every approved outlet that can be read logged-out (about 110). Or list source ids from data/sources/news_notion.json, e.g. mfa, xinhua, bbc."
+  },
+  "snapshotCount": {
+   "title": "Snapshots in this run",
+   "type": "integer",
+   "default": 1,
+   "minimum": 1,
+   "maximum": 24,
+   "description": "Use 1 with a schedule (every 5-10 min). Higher values keep one run alive and poll repeatedly."
+  },
+  "emitOnlyNew": {
+   "title": "Emit only new rows",
+   "type": "boolean",
+   "default": true,
+   "description": "Push only dataset rows that are new since the last run. A deletion flag is pushed again when its status changes (for example likely censored to censored, or to returned). Turn off to push a full snapshot. Apify bills each pushed dataset row."
+  },
+  "snapshotIntervalMinutes": {
+   "title": "Minutes between in-run snapshots",
+   "type": "integer",
+   "default": 5,
+   "minimum": 1,
+   "description": "Minutes to wait between extra snapshots when snapshotCount is greater than 1."
+  },
+  "maxItems": {
+   "title": "Max billed rows",
+   "type": "integer",
+   "minimum": 1,
+   "description": "Optional cap on the total number of billed rows this run. Leave empty for no limit."
+  },
+  "maxItemsPerSource": {
+   "title": "Max items per news source",
+   "type": "integer",
+   "default": 30,
+   "minimum": 1,
+   "maximum": 100,
+   "description": "Maximum number of news items kept from each source in one run."
+  },
+  "maxHotRank": {
+   "title": "Include hot-list items up to rank",
+   "type": "integer",
+   "default": 50,
+   "minimum": 5,
+   "maximum": 50,
+   "description": "Hot-list rows ranked worse than this are left out of the feed."
+  },
+  "highRank": {
+   "title": "'High rank' threshold for censorship flags",
+   "type": "integer",
+   "default": 15,
+   "minimum": 3,
+   "maximum": 50,
+   "description": "A topic that vanishes at or above this rank (or while rising) is flagged."
+  },
+  "recheckUrls": {
+   "title": "Re-check URLs of vanished topics",
+   "type": "boolean",
+   "default": true,
+   "description": "Kept for compatibility. URL rechecks run on our side, not in this actor. The actor joins the stored result for each flag. A flag with no stored result stays pending."
+  },
+  "freeweiboCheck": {
+   "title": "Cross-check FreeWeibo (aggregate counts only)",
+   "type": "boolean",
+   "default": true,
+   "description": "Kept for compatibility. FreeWeibo lookups run on our side, not in this actor. The actor joins stored aggregate counts. A flag with no stored result leaves freeweibo empty. Post text is not stored."
+  },
+  "topN": {
+   "title": "Topics in the readable report",
+   "type": "integer",
+   "default": 15,
+   "description": "How many topics to include in the readable top-stories report."
+  },
+  "clusterBudgetSeconds": {
+   "title": "Clustering time budget (seconds)",
+   "type": "integer",
+   "default": 120,
+   "minimum": 1,
+   "description": "Maximum seconds spent clustering items in one run. If this runs out, items not yet assigned are left as their own clusters, a warning is logged, and the run continues. The default is 120 seconds."
+  },
+  "sourceRoutes": {
+   "title": "Direct or sidecar route",
+   "type": "object",
+   "editor": "json",
+   "default": {},
+   "description": "Optional overrides of catalog ingest.route. Each value is direct or sidecar. China Press and Sydney Today default to sidecar: the poller fetches them on the box and this actor reads the store. Set a source to direct to use its actor fetcher instead. An empty object keeps the catalog route."
+  },
+  "includeNfsc": {
+   "title": "Include NFSC network rows",
+   "type": "boolean",
+   "editor": "hidden",
+   "default": true,
+   "description": "When true (the default), the nine NFSC Dissident rows in the public sidecar record are merged into the dataset. Set false to leave them out without a new build. Telegram and YouTube NFSC rows still follow the channel redaction gate and stay internal until that sign-off."
+  },
+  "useApifyProxy": {
+   "title": "Use Apify Proxy",
+   "type": "boolean",
+   "default": false,
+   "description": "Most sources work without a proxy. Enable if lists start rate-limiting."
+  },
+  "proxyGroups": {
+   "title": "Proxy groups",
+   "type": "array",
+   "editor": "stringList",
+   "sectionCaption": "Advanced",
+   "description": "e.g. RESIDENTIAL. Leave empty for the default datacenter pool."
+  },
+  "sidecarStoreId": {
+   "title": "Sidecar store ID",
+   "type": "string",
+   "editor": "hidden",
+   "description": "Optional. Overrides the SIDECAR_STORE_ID environment variable. Not shown to buyers."
+  },
+  "historyStore": {
+   "title": "Hot-list history store",
+   "type": "string",
+   "editor": "hidden",
+   "default": "china-feed-history",
+   "description": "Internal testing only. Owner runs upload trimmed history here. Buyer runs do not open this store. Leave as default."
+  },
+  "simulateBuyer": {
+   "title": "Simulate a buyer run",
+   "type": "boolean",
+   "editor": "hidden",
+   "default": false,
+   "description": "Internal testing only. When true, this run skips china-feed-history and uses an in-run temp file, the same as a buyer, even on the owner's account. It cannot turn history on."
+  },
+  "apifyRetentionDays": {
+   "title": "Apify retention days",
+   "type": "integer",
+   "editor": "hidden",
+   "default": 7,
+   "minimum": 1,
+   "description": "Internal testing only. Days of timestamped rows kept in Apify on each upload. The default is 7. The APIFY_RETENTION_DAYS environment variable overrides this."
+  },
+  "contextKey": {
+   "title": "Cluster context record key",
+   "type": "string",
+   "editor": "hidden",
+   "default": "cluster_context",
+   "description": "Internal testing only. Leave as default; changing it disables cross-run clustering."
+  }
+ }
+}
