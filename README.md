@@ -116,3 +116,9 @@ npm test
 ```
 
 Tests use mocked fetch responses and the provided fixtures, with no paid actor runs. Input reference: [actor-input-schema.json](actor-input-schema.json). Licensed under MIT, copyright 2026 Ownly.
+
+## Related links
+
+- Free sample rows on GitHub: https://github.com/joydai2026-del/china-news-feed-samples
+- Hugging Face dataset: https://huggingface.co/datasets/freedom-press/china-news-feed-sample
+- Apify actor: https://apify.com/china.unofficial/china-news-feed
