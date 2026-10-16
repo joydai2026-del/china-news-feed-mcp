@@ -55,7 +55,8 @@ function tokenFrom(request: Request, url: URL): string | undefined {
 async function readSample(env: Env): Promise<unknown[]> {
   const feed = await env.FEED.get("feed_en", "json");
   const items = Array.isArray(feed) ? feed : isObject(feed) && Array.isArray(feed.items) ? feed.items : [];
-  return items.slice(0, 3).filter(isObject).map(item => Object.fromEntries(sampleFields.filter(key => item[key] !== undefined).map(key => [key, item[key]])));
+  const withEn = items.filter(i => isObject(i) && typeof i.headline_en === "string" && i.headline_en.trim() !== "");
+  return (withEn.length ? withEn : items).slice(0, 3).filter(isObject).map(item => Object.fromEntries(sampleFields.filter(key => item[key] !== undefined).map(key => [key, item[key]])));
 }
 
 export default {
