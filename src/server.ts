@@ -43,9 +43,17 @@ function project(row: Row, lang: Language): unknown {
 
 class ToolError extends Error {}
 
-async function runActor(input: Row): Promise<Row[]> {
-  const token = process.env.APIFY_TOKEN?.trim();
-  if (!token) throw new ToolError("APIFY_TOKEN is missing. Set it to your own Apify API token before calling this tool.");
+export interface ServerOptions {
+  getToken?: () => string | undefined;
+  getSample?: () => Promise<unknown[]>;
+}
+
+const envToken = () => typeof process !== "undefined" ? process.env.APIFY_TOKEN : undefined;
+const storeUrl = "https://apify.com/china.unofficial/china-news-feed";
+
+async function runActor(input: Row, getToken: () => string | undefined): Promise<Row[]> {
+  const token = getToken()?.trim();
+  if (!token) throw new ToolError(`APIFY_TOKEN is missing. Set it to your own Apify API token before calling this tool. On the hosted server, pass your Apify token via the \`apifyToken\` query param/config or \`x-apify-token\` header, or use the Apify Store page ${storeUrl}.`);
   const url = new URL("https://api.apify.com/v2/acts/china.unofficial~china-news-feed/run-sync-get-dataset-items");
   url.searchParams.set("token", token);
   url.searchParams.set("clean", "1");
@@ -70,9 +78,9 @@ async function runActor(input: Row): Promise<Row[]> {
   }
 }
 
-async function execute(input: Row, lang: Language, filter: (row: Row) => boolean) {
+async function execute(getToken: () => string | undefined, input: Row, lang: Language, filter: (row: Row) => boolean) {
   try {
-    const dataset = await runActor(input);
+    const dataset = await runActor(input, getToken);
     const rows = dataset.filter(filter).map(row => project(row, lang));
     return { content: [{ type: "text" as const, text: JSON.stringify({ count: rows.length, rows, note: `billed rows: ${dataset.length} at $8/1000` }) }] };
   } catch (error) {
@@ -80,20 +88,33 @@ async function execute(input: Row, lang: Language, filter: (row: Row) => boolean
   }
 }
 
-export function createServer(): McpServer {
+export function createServer(options: ServerOptions = {}): McpServer {
   const server = new McpServer({ name: "china-news-feed-mcp", version: "1.0.0" });
+  const getToken = options.getToken ?? envToken;
   server.registerTool("get_china_news", {
     description: "Fetch China news. Costs $8 per 1,000 dataset rows on your Apify account. Query and language are applied locally after billing.",
     inputSchema: { language, maxItems, query: z.string().optional(), sources: z.array(z.string()).optional(), sourceTypes: z.array(z.enum(sourceTypes)).optional() },
-  }, async args => execute({ maxItems: args.maxItems, hotLists: [], ...(args.sources !== undefined ? { newsSources: args.sources } : {}), ...(args.sourceTypes !== undefined ? { sourceTypes: args.sourceTypes } : {}) }, args.language,
+  }, async args => execute(getToken, { maxItems: args.maxItems, hotLists: [], ...(args.sources !== undefined ? { newsSources: args.sources } : {}), ...(args.sourceTypes !== undefined ? { sourceTypes: args.sourceTypes } : {}) }, args.language,
     row => row.kind === "news" && (args.query === undefined || [row.headline_en, row.headline_original].some(h => typeof h === "string" && h.toLowerCase().includes(args.query!.toLowerCase())))));
   server.registerTool("get_hot_lists", {
     description: "Fetch Chinese platform hot lists. Costs $8 per 1,000 dataset rows on your own Apify account.",
     inputSchema: { platforms: platformInput, maxRank: z.number().int().min(5).max(50).default(50), maxItems, language },
-  }, async args => execute({ sourceTypes: [], hotLists: args.platforms, maxHotRank: args.maxRank, maxItems: args.maxItems }, args.language, row => row.kind === "hot"));
+  }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxHotRank: args.maxRank, maxItems: args.maxItems }, args.language, row => row.kind === "hot"));
   server.registerTool("get_deletions", {
     description: "Fetch deletion-watch flags (including provisional and returned statuses). Costs $8 per 1,000 fetched dataset rows; unflagged rows also count toward billing.",
     inputSchema: { platforms: platformInput, maxItems, highRank: z.number().int().min(3).max(50).optional() },
-  }, async args => execute({ sourceTypes: [], hotLists: args.platforms, maxItems: args.maxItems, ...(args.highRank !== undefined ? { highRank: args.highRank } : {}) }, "both", row => row.censorship !== null && row.censorship !== undefined));
+  }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxItems: args.maxItems, ...(args.highRank !== undefined ? { highRank: args.highRank } : {}) }, "both", row => row.censorship !== null && row.censorship !== undefined));
+  const { getSample } = options;
+  if (getSample) server.registerTool("get_sample", {
+    description: "Free sample of the English China news feed (no Apify token needed).",
+    inputSchema: { limit: z.number().int().min(1).max(3).default(3) },
+  }, async args => {
+    try {
+      const items = (await getSample()).slice(0, args.limit);
+      return { content: [{ type: "text" as const, text: JSON.stringify({ count: items.length, items, note: `Free sample of the English feed. Full feed via the paid tools or ${storeUrl}` }) }] };
+    } catch {
+      return { isError: true, content: [{ type: "text" as const, text: "The sample feed is currently unavailable." }] };
+    }
+  });
   return server;
 }

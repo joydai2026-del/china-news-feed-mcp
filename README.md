@@ -16,6 +16,19 @@ News `sourceTypes` accepts the actor's exact values: `State media`, `Party-gov`,
 
 `language` controls output projection: `en` includes `headline_en`, `zh` includes `headline_original`, and `both` includes both. Missing translations are omitted. The actor has no language or query input. `query` filters both headlines locally, case-insensitively, after fetching. Deletion filtering also happens locally, so the returned `count` can be smaller than the fetched/billed row count. No automatic retries are made.
 
+## Hosted endpoint (Streamable HTTP)
+
+A public MCP endpoint runs on Cloudflare Workers: **https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp**
+
+- `get_sample` is free and needs no token (up to 3 recent English-feed rows).
+- `get_china_news`, `get_hot_lists` and `get_deletions` run the Apify actor on **your own** Apify account. Pass your token as the `x-apify-token` header, `Authorization: Bearer <token>`, or the `apifyToken` query/config parameter. Without a token, use the [Apify Store page](https://apify.com/china.unofficial/china-news-feed).
+
+```json
+{ "mcpServers": { "china-news-feed": { "url": "https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp", "headers": { "x-apify-token": "<your-apify-token>" } } } }
+```
+
+The Worker source is in `worker/index.ts` (`npm run deploy:check` builds it without deploying).
+
 ## Claude Desktop and Cursor
 
 Install Node.js 20 or newer and obtain a token from your Apify account. For Claude Desktop, add the following to `claude_desktop_config.json` (open it through Settings → Developer → Edit Config). For Cursor, add it to `.cursor/mcp.json` in your project or `~/.cursor/mcp.json` for global use. Merge it with existing `mcpServers` entries, then restart the client.
