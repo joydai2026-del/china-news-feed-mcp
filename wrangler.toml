@@ -1,0 +1,9 @@
+name = "china-news-feed-mcp"
+main = "worker/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "FEED"
+id = "29dcd1a6e16e424baf2dd8631377ed31"
