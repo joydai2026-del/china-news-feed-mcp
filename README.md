@@ -27,6 +27,8 @@ A public MCP endpoint runs on Cloudflare Workers: **https://china-news-feed-mcp.
 { "mcpServers": { "china-news-feed": { "url": "https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp", "headers": { "x-apify-token": "<your-apify-token>" } } } }
 ```
 
+Prefer paying per call in USDC instead of using an Apify account? The same feed is sold over x402 on **Base mainnet** ($0.01 USDC per call) at https://ownly-cmf-x402.joyd-ai-2026.workers.dev (free `/sample` and `/health`; paid `/v1/feed/en`, `/v1/feed/zh`, `/v1/hot`, `/v1/deletions`).
+
 The Worker source is in `worker/index.ts` (`npm run deploy:check` builds it without deploying).
 
 ## Claude Desktop and Cursor
