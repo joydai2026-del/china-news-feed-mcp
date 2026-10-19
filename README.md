@@ -107,6 +107,13 @@ Shortened from the two fixture rows in [sample-rows.json](sample-rows.json), ill
 }
 ```
 
+## Pay-per-call HTTP API (x402)
+
+- API base URL: https://ownly-cmf-x402.joyd-ai-2026.workers.dev
+- Payee (payTo): `0x7BB40af451f7e6fcB7C844a0Ac9e709B92854F5F`
+- Price: $0.01 per call, paid in USDC on Base
+- Buyer guide: [docs/x402-buyer-guide.md](docs/x402-buyer-guide.md)
+
 ## Development
 
 ```bash
