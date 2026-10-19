@@ -21,7 +21,8 @@ News `sourceTypes` accepts the actor's exact values: `State media`, `Party-gov`,
 A public MCP endpoint runs on Cloudflare Workers: **https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp**
 
 - `get_sample` is free and needs no token (up to 3 recent English-feed rows).
-- `get_china_news`, `get_hot_lists` and `get_deletions` run the Apify actor on **your own** Apify account. Pass your token as the `x-apify-token` header, `Authorization: Bearer <token>`, or the `apifyToken` query/config parameter. Without a token, use the [Apify Store page](https://apify.com/china.unofficial/china-news-feed).
+- `get_china_news`, `get_hot_lists` and `get_deletions` run the Apify actor on **your own** Apify account. Pass your token as the `x-apify-token` header, `Authorization: Bearer <token>`, or the `apifyToken` query/config parameter.
+- Without a token, those three tools are paid per call with [x402](https://x402.org): $0.01 USDC on **Base mainnet**, same terms as the REST API below. `initialize`, `tools/list` and `get_sample` stay free. An unpaid `tools/call` gets **HTTP 402** with the x402 `accepts` body; sign it with any x402 client and resend the same request with the `X-PAYMENT` header. The tool then returns up to 20 rows from the hosted feed, and the receipt arrives in `X-PAYMENT-RESPONSE`. You can also use the [Apify Store page](https://apify.com/china.unofficial/china-news-feed).
 
 ```json
 { "mcpServers": { "china-news-feed": { "url": "https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp", "headers": { "x-apify-token": "<your-apify-token>" } } } }
