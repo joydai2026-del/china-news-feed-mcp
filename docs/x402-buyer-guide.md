@@ -1,11 +1,11 @@
-# Buyer guide: Ownly China News Feed over x402 (draft for api boss)
+# Buyer guide: Ownly China News Feed over x402
 
 Pay per call in USDC on Base. No account, no API key.
 
 **API:** https://ownly-cmf-x402.joyd-ai-2026.workers.dev
 **OpenAPI:** https://ownly-cmf-x402.joyd-ai-2026.workers.dev/openapi.json
 **Payee (payTo):** `0x7BB40af451f7e6fcB7C844a0Ac9e709B92854F5F`
-**Asset:** USDC on Base, `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+**Asset:** USDC on Base. USDC token contract (not our payee): `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 **Price:** $0.01 per call (`maxAmountRequired` 10000, i.e. 0.01 USDC)
 
 ## Endpoints
