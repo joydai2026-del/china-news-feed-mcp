@@ -26,6 +26,14 @@ const hasCdp = (env: PayEnv) => Boolean(env.CDP_API_KEY_ID && env.CDP_API_KEY_SE
 // Mainnet requires the CDP facilitator; testnet uses it when keys are set, else x402.org (same as ownly-cmf-x402).
 const facilitatorFor = (env: PayEnv) => hasCdp(env) ? createFacilitatorConfig(env.CDP_API_KEY_ID, env.CDP_API_KEY_SECRET) : { url: "https://x402.org/facilitator" as const };
 
+// tools/list line for the paid tools, built from the same vars as the 402 terms. Omitted when payment is not configured.
+const NETWORK_LABELS: Record<string, string> = { "base-sepolia": "Base Sepolia (testnet)", base: "Base" };
+export function paidNote(env: PayEnv, maxItems: number): string | undefined {
+  const label = NETWORK_LABELS[network(env)];
+  if (!env.X402_PAY_TO || !label) return undefined;
+  return `No Apify token? Pay $${price(env)} per call in USDC on ${label} via x402 (up to ${maxItems} items per call).`;
+}
+
 // Descriptions copied from ownly-cmf-x402 routes (/v1/feed/en, /v1/feed/zh, /v1/hot, /v1/deletions).
 const descriptions = {
   en: "China news in English: latest headlines from Chinese state, commercial and overseas media plus platform hot lists (public data, translated). $0.01 USDC per call.",

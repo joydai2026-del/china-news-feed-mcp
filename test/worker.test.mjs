@@ -93,6 +93,21 @@ test('initialize, tools/list and get_sample stay free without a token', async ()
   assert.deepEqual(calls, []);
 });
 
+const PAID_LINE = 'No Apify token? Pay $0.01 per call in USDC on Base via x402 (up to 20 items per call).';
+test('tools/list adds the x402 line to exactly the three paid tools', async () => {
+  for (const headers of [{}, { 'x-apify-token': 'byo-test-token' }]) {
+    const { body } = await post(rpc('tools/list'), mainnet, headers);
+    const withLine = body.result.tools.filter(t => t.description.split('\n').includes(PAID_LINE)).map(t => t.name);
+    assert.deepEqual(withLine, ['get_china_news', 'get_hot_lists', 'get_deletions']);
+    for (const t of body.result.tools) assert.equal(t.description.split(PAID_LINE).length - 1, withLine.includes(t.name) ? 1 : 0, t.name);
+    assert.equal(body.result.tools.find(t => t.name === 'get_hot_lists').description, `Fetch Chinese platform hot lists. Costs $8 per 1,000 dataset rows on your own Apify account.\n${PAID_LINE}`);
+    assert.equal(body.result.tools.find(t => t.name === 'get_sample').description, 'Free sample of the English China news feed (no Apify token needed).');
+  }
+  const unconfigured = await post(rpc('tools/list'), { ...mainnet, X402_PAY_TO: '' });
+  assert.ok(unconfigured.body.result.tools.every(t => !t.description.includes('x402')));
+  assert.deepEqual(calls, []);
+});
+
 test('BYO Apify token goes straight to Apify (mocked) with no x402, even if X-PAYMENT is sent', async () => {
   for (const headers of [{ 'x-apify-token': 'byo-test-token' }, { authorization: 'Bearer byo-test-token', 'x-payment': 'garbage' }]) {
     calls = [];

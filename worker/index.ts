@@ -1,6 +1,6 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createServer, paidTools, type PaidTool } from "../src/server.js";
-import { requirements, verifyPayment, type PayEnv } from "./x402.js";
+import { paidNote, requirements, verifyPayment, type PayEnv } from "./x402.js";
 
 interface KVNamespace {
   get(key: string, type: "json"): Promise<unknown>;
@@ -63,10 +63,12 @@ async function readSample(env: Env): Promise<unknown[]> {
 
 const itemsFrom = (value: unknown): unknown[] => Array.isArray(value) ? value : isObject(value) && Array.isArray(value.items) ? value.items : [];
 
+const maxItems = (env: Env) => Number.isSafeInteger(Number(env.MAX_ITEMS)) && Number(env.MAX_ITEMS) > 0 ? Number(env.MAX_ITEMS) : 20;
+
 // Paid rows come from the same KV feed the REST x402 Worker sells, capped at MAX_ITEMS like ownly-cmf-x402.
 async function readPaid(env: Env, tool: PaidTool, args: Record<string, unknown>): Promise<unknown[]> {
   const key = tool === "get_hot_lists" ? "hot" : tool === "get_deletions" ? "deletions" : args.language === "zh" ? "feed_zh" : "feed_en";
-  const max = Number.isSafeInteger(Number(env.MAX_ITEMS)) && Number(env.MAX_ITEMS) > 0 ? Number(env.MAX_ITEMS) : 20;
+  const max = maxItems(env);
   const limit = Math.min(typeof args.maxItems === "number" ? args.maxItems : max, max);
   const query = typeof args.query === "string" ? args.query.toLowerCase() : undefined;
   return itemsFrom(await env.FEED.get(key, "json")).filter(isObject).filter(row => tool !== "get_china_news"
@@ -101,7 +103,7 @@ async function succeeded(response: Response): Promise<boolean> {
 }
 
 async function handleMcp(request: Request, env: Env, token: string | undefined, paid = false): Promise<Response> {
-  const server = createServer({ getToken: () => token, getSample: () => readSample(env), ...(paid ? { getPaidRows: (tool: PaidTool, args: Record<string, unknown>) => readPaid(env, tool, args) } : {}) });
+  const server = createServer({ getToken: () => token, getSample: () => readSample(env), paidNote: paidNote(env, maxItems(env)), ...(paid ? { getPaidRows: (tool: PaidTool, args: Record<string, unknown>) => readPaid(env, tool, args) } : {}) });
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   try {
     await server.connect(transport);
