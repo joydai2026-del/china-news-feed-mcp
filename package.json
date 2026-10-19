@@ -16,5 +16,5 @@
     "deploy:check": "wrangler deploy --dry-run --outdir dist-worker"
   },
   "dependencies": { "@modelcontextprotocol/sdk": "^1.27.1", "zod": "^3.25.76" },
-  "devDependencies": { "@types/node": "^20.19.0", "typescript": "^5.9.3", "wrangler": "~4.86.0" }
+  "devDependencies": { "@coinbase/x402": "1.0.1", "@types/node": "^20.19.0", "typescript": "^5.9.3", "viem": "2.57.7", "wrangler": "~4.86.0", "x402": "1.2.0" }
 }

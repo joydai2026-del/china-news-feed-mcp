@@ -43,9 +43,14 @@ function project(row: Row, lang: Language): unknown {
 
 class ToolError extends Error {}
 
+export const paidTools = ["get_china_news", "get_hot_lists", "get_deletions"] as const;
+export type PaidTool = typeof paidTools[number];
+
 export interface ServerOptions {
   getToken?: () => string | undefined;
   getSample?: () => Promise<unknown[]>;
+  // Hosted x402 mode: rows for a tool call that was already paid. Used only when there is no Apify token.
+  getPaidRows?: (tool: PaidTool, args: Row) => Promise<unknown[]>;
 }
 
 const envToken = () => typeof process !== "undefined" ? process.env.APIFY_TOKEN : undefined;
@@ -78,7 +83,15 @@ async function runActor(input: Row, getToken: () => string | undefined): Promise
   }
 }
 
-async function execute(getToken: () => string | undefined, input: Row, lang: Language, filter: (row: Row) => boolean) {
+async function execute(getToken: () => string | undefined, input: Row, lang: Language, filter: (row: Row) => boolean, paid?: () => Promise<unknown[]>) {
+  if (paid && !getToken()?.trim()) {
+    try {
+      const rows = await paid();
+      return { content: [{ type: "text" as const, text: JSON.stringify({ count: rows.length, rows, note: "paid per call via x402 (USDC); rows from the hosted feed" }) }] };
+    } catch {
+      return { isError: true, content: [{ type: "text" as const, text: "The paid feed is currently unavailable." }] };
+    }
+  }
   try {
     const dataset = await runActor(input, getToken);
     const rows = dataset.filter(filter).map(row => project(row, lang));
@@ -91,19 +104,21 @@ async function execute(getToken: () => string | undefined, input: Row, lang: Lan
 export function createServer(options: ServerOptions = {}): McpServer {
   const server = new McpServer({ name: "china-news-feed-mcp", version: "1.0.0" });
   const getToken = options.getToken ?? envToken;
+  const { getPaidRows } = options;
+  const paid = (tool: PaidTool, args: Row) => getPaidRows && (() => getPaidRows(tool, args));
   server.registerTool("get_china_news", {
     description: "Fetch China news. Costs $8 per 1,000 dataset rows on your Apify account. Query and language are applied locally after billing.",
     inputSchema: { language, maxItems, query: z.string().optional(), sources: z.array(z.string()).optional(), sourceTypes: z.array(z.enum(sourceTypes)).optional() },
   }, async args => execute(getToken, { maxItems: args.maxItems, hotLists: [], ...(args.sources !== undefined ? { newsSources: args.sources } : {}), ...(args.sourceTypes !== undefined ? { sourceTypes: args.sourceTypes } : {}) }, args.language,
-    row => row.kind === "news" && (args.query === undefined || [row.headline_en, row.headline_original].some(h => typeof h === "string" && h.toLowerCase().includes(args.query!.toLowerCase())))));
+    row => row.kind === "news" && (args.query === undefined || [row.headline_en, row.headline_original].some(h => typeof h === "string" && h.toLowerCase().includes(args.query!.toLowerCase()))), paid("get_china_news", args)));
   server.registerTool("get_hot_lists", {
     description: "Fetch Chinese platform hot lists. Costs $8 per 1,000 dataset rows on your own Apify account.",
     inputSchema: { platforms: platformInput, maxRank: z.number().int().min(5).max(50).default(50), maxItems, language },
-  }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxHotRank: args.maxRank, maxItems: args.maxItems }, args.language, row => row.kind === "hot"));
+  }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxHotRank: args.maxRank, maxItems: args.maxItems }, args.language, row => row.kind === "hot", paid("get_hot_lists", args)));
   server.registerTool("get_deletions", {
     description: "Fetch deletion-watch flags (including provisional and returned statuses). Costs $8 per 1,000 fetched dataset rows; unflagged rows also count toward billing.",
     inputSchema: { platforms: platformInput, maxItems, highRank: z.number().int().min(3).max(50).optional() },
-  }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxItems: args.maxItems, ...(args.highRank !== undefined ? { highRank: args.highRank } : {}) }, "both", row => row.censorship !== null && row.censorship !== undefined));
+  }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxItems: args.maxItems, ...(args.highRank !== undefined ? { highRank: args.highRank } : {}) }, "both", row => row.censorship !== null && row.censorship !== undefined, paid("get_deletions", args)));
   const { getSample } = options;
   if (getSample) server.registerTool("get_sample", {
     description: "Free sample of the English China news feed (no Apify token needed).",
