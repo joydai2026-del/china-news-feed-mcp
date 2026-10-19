@@ -51,6 +51,8 @@ export interface ServerOptions {
   getSample?: () => Promise<unknown[]>;
   // Hosted x402 mode: rows for a tool call that was already paid. Used only when there is no Apify token.
   getPaidRows?: (tool: PaidTool, args: Row) => Promise<unknown[]>;
+  // Hosted x402 mode: extra line appended to the paid tools' descriptions. The stdio server never sets it.
+  paidNote?: string;
 }
 
 const envToken = () => typeof process !== "undefined" ? process.env.APIFY_TOKEN : undefined;
@@ -106,17 +108,18 @@ export function createServer(options: ServerOptions = {}): McpServer {
   const getToken = options.getToken ?? envToken;
   const { getPaidRows } = options;
   const paid = (tool: PaidTool, args: Row) => getPaidRows && (() => getPaidRows(tool, args));
+  const describe = (text: string) => options.paidNote ? `${text}\n${options.paidNote}` : text;
   server.registerTool("get_china_news", {
-    description: "Fetch China news. Costs $8 per 1,000 dataset rows on your Apify account. Query and language are applied locally after billing.",
+    description: describe("Fetch China news. Costs $8 per 1,000 dataset rows on your Apify account. Query and language are applied locally after billing."),
     inputSchema: { language, maxItems, query: z.string().optional(), sources: z.array(z.string()).optional(), sourceTypes: z.array(z.enum(sourceTypes)).optional() },
   }, async args => execute(getToken, { maxItems: args.maxItems, hotLists: [], ...(args.sources !== undefined ? { newsSources: args.sources } : {}), ...(args.sourceTypes !== undefined ? { sourceTypes: args.sourceTypes } : {}) }, args.language,
     row => row.kind === "news" && (args.query === undefined || [row.headline_en, row.headline_original].some(h => typeof h === "string" && h.toLowerCase().includes(args.query!.toLowerCase()))), paid("get_china_news", args)));
   server.registerTool("get_hot_lists", {
-    description: "Fetch Chinese platform hot lists. Costs $8 per 1,000 dataset rows on your own Apify account.",
+    description: describe("Fetch Chinese platform hot lists. Costs $8 per 1,000 dataset rows on your own Apify account."),
     inputSchema: { platforms: platformInput, maxRank: z.number().int().min(5).max(50).default(50), maxItems, language },
   }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxHotRank: args.maxRank, maxItems: args.maxItems }, args.language, row => row.kind === "hot", paid("get_hot_lists", args)));
   server.registerTool("get_deletions", {
-    description: "Fetch deletion-watch flags (including provisional and returned statuses). Costs $8 per 1,000 fetched dataset rows; unflagged rows also count toward billing.",
+    description: describe("Fetch deletion-watch flags (including provisional and returned statuses). Costs $8 per 1,000 fetched dataset rows; unflagged rows also count toward billing."),
     inputSchema: { platforms: platformInput, maxItems, highRank: z.number().int().min(3).max(50).optional() },
   }, async args => execute(getToken, { sourceTypes: [], hotLists: args.platforms, maxItems: args.maxItems, ...(args.highRank !== undefined ? { highRank: args.highRank } : {}) }, "both", row => row.censorship !== null && row.censorship !== undefined, paid("get_deletions", args)));
   const { getSample } = options;

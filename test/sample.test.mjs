@@ -45,3 +45,12 @@ test('get_sample is not registered without getSample', async () => {
     await close();
   }
 });
+
+test('stdio server descriptions carry no x402 line', async () => {
+  const { client, close } = await connect();
+  try {
+    assert.ok((await client.listTools()).tools.every(t => !t.description.includes('x402') && !t.description.includes('\n')));
+  } finally {
+    await close();
+  }
+});
