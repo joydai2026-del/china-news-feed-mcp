@@ -126,6 +126,6 @@ Tests use mocked fetch responses and the provided fixtures, with no paid actor r
 
 ## Related links
 
-- Free sample rows on GitHub: https://github.com/joydai2026-del/china-news-feed-samples
+- Free sample rows on GitHub: https://github.com/Ownly-Network/china-news-feed-samples
 - Hugging Face dataset: https://huggingface.co/datasets/freedom-press/china-news-feed-sample
 - Apify actor: https://apify.com/china.unofficial/china-news-feed
