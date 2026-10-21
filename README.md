@@ -1,3 +1,5 @@
+Moved → https://github.com/Ownly-Network/china-news-feed-mcp (MCP Registry: io.github.Ownly-Network/china-news-feed)
+
 # china-news-feed-mcp
 
 A TypeScript MCP server for China news, platform hot lists, and deletion-watch flags, wrapping the [China News Feed Apify actor](https://apify.com/china.unofficial/china-news-feed) (`CeTIPfpcWcDrEhrPV`). Uses Node.js 20 native fetch and MCP over stdio.
