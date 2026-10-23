@@ -61,6 +61,30 @@ Use this server entry in either client's `mcpServers` object, replacing the path
 
 For manual startup with `APIFY_TOKEN` already exported, run `npm start`. The server reserves stdout for MCP messages. Missing tokens produce a clear tool error; tokens and raw upstream errors are never logged. The fetch timeout is 300 seconds; configure a longer tool timeout in your client if supported. A timed-out request may leave an actor run active in Apify.
 
+## Pay per call with x402 (USDC)
+
+Set `BACKEND=x402` to use the Ownly x402 API instead of Apify. Each tool call costs **$0.01 USDC for up to 20 items**. `maxItems` is capped at 20 per call; larger requests do not trigger additional calls. Query, source, platform, and rank filters run locally after fetching, so fewer items may be returned at the same call price.
+
+This backend is currently **testnet**, using **Base Sepolia** by default. Use your own wallet with testnet USDC and keep its private key in private client configuration or your process environment. The server uses `x402-fetch` to handle the API's payment challenge and sign payment with a viem account. Private keys and raw payment errors are never logged.
+
+```json
+{
+  "china-news-feed": {
+    "command": "node",
+    "args": ["/absolute/path/china-news-feed-mcp/dist/index.js"],
+    "env": {
+      "BACKEND": "x402",
+      "X402_PRIVATE_KEY": "<your-0x-prefixed-wallet-private-key>",
+      "X402_BASE_URL": "https://ownly-cmf-x402.joyd-ai-2026.workers.dev"
+    }
+  }
+}
+```
+
+`BACKEND` defaults to `apify`. `X402_PRIVATE_KEY` is required only for x402; `APIFY_TOKEN` is not required in x402 mode. `X402_BASE_URL` is optional and defaults to the URL above. The API's payment challenge specifies the payment network. News uses `/v1/feed/en` or `/v1/feed/zh`; `language=both` uses the English feed, which includes `headline_original`. Hot lists use `/v1/hot`, and deletion flags use `/v1/deletions`.
+
+Platforms remain Weibo 微博, Baidu 百度, Zhihu 知乎, Toutiao 今日头条, Douyin 抖音, Bilibili 哔哩哔哩, and Kuaishou 快手, filtered locally by `source_id`.
+
 ## Docker
 
 ```bash
