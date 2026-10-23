@@ -18,6 +18,22 @@ News `sourceTypes` accepts the actor's exact values: `State media`, `Party-gov`,
 
 `language` controls output projection: `en` includes `headline_en`, `zh` includes `headline_original`, and `both` includes both. Missing translations are omitted. The actor has no language or query input. `query` filters both headlines locally, case-insensitively, after fetching. Deletion filtering also happens locally, so the returned `count` can be smaller than the fetched/billed row count. No automatic retries are made.
 
+## Hosted endpoint (Streamable HTTP)
+
+A public MCP endpoint runs on Cloudflare Workers: **https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp**
+
+- `get_sample` is free and needs no token (up to 3 recent English-feed rows).
+- `get_china_news`, `get_hot_lists` and `get_deletions` run the Apify actor on **your own** Apify account. Pass your token as the `x-apify-token` header, `Authorization: Bearer <token>`, or the `apifyToken` query/config parameter.
+- Without a token, those three tools are paid per call with [x402](https://x402.org): $0.01 USDC on **Base mainnet**, same terms as the REST API below. `initialize`, `tools/list` and `get_sample` stay free. An unpaid `tools/call` gets **HTTP 402** with the x402 `accepts` body; sign it with any x402 client and resend the same request with the `X-PAYMENT` header. The tool then returns up to 20 rows from the hosted feed, and the receipt arrives in `X-PAYMENT-RESPONSE`. You can also use the [Apify Store page](https://apify.com/china.unofficial/china-news-feed).
+
+```json
+{ "mcpServers": { "china-news-feed": { "url": "https://china-news-feed-mcp.joyd-ai-2026.workers.dev/mcp", "headers": { "x-apify-token": "<your-apify-token>" } } } }
+```
+
+Prefer paying per call in USDC instead of using an Apify account? The same feed is sold over x402 on **Base mainnet** ($0.01 USDC per call) at https://ownly-cmf-x402.joyd-ai-2026.workers.dev (free `/sample` and `/health`; paid `/v1/feed/en`, `/v1/feed/zh`, `/v1/hot`, `/v1/deletions`).
+
+The Worker source is in `worker/index.ts` (`npm run deploy:check` builds it without deploying).
+
 ## Claude Desktop and Cursor
 
 Install Node.js 20 or newer and obtain a token from your Apify account. For Claude Desktop, add the following to `claude_desktop_config.json` (open it through Settings → Developer → Edit Config). For Cursor, add it to `.cursor/mcp.json` in your project or `~/.cursor/mcp.json` for global use. Merge it with existing `mcpServers` entries, then restart the client.

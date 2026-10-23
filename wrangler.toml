@@ -1,0 +1,17 @@
+name = "china-news-feed-mcp"
+main = "worker/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "FEED"
+id = "29dcd1a6e16e424baf2dd8631377ed31"
+
+# x402 terms copied verbatim from joydai2026-del/ownly-cmf-x402@23ca542 wrangler.toml.
+# Changing price, network or payTo needs JD's explicit go.
+[vars]
+X402_PAY_TO = "0x7bb40af451f7e6fcb7c844a0ac9e709b92854f5f"
+PRICE_USD = "0.01"
+NETWORK = "base"
+MAX_ITEMS = "20"
